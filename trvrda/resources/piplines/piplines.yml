@@ -1,27 +1,17 @@
-id: 8f01a698-1d91-4843-90cc-4fdc405c9eb6
-pipeline_type: WORKSPACE
-name: "[dev vardhanxxv] trvrda_etl"
-libraries:
-  - glob:
-      include: ../../trvrda/src/trvrda_etl/transformations/**
-
-development: true
-edition: ADVANCED
-channel: CURRENT
-catalog: ${var.catalog}
-schema: ${var.schema}
-
-configuration:
-  source_path: ${var.source_path}
-
-serverless: true
-deployment:
-  kind: BUNDLE
-  metadata_file_path: /Workspace/Users/vardhanxxv@gmail.com/.bundle/trvrda/dev/state/metadata.json
-tags:
-  dev: vardhanxxv
-root_path: ../../src/trvrda_etl
-environment:
-  dependencies:
-    - --editable
-      /Workspace/Users/vardhanxxv@gmail.com/Telangana-RTA-Vehicle-Registration-Data-Analysis-/trvrda
+resources:
+  pipelines:
+    trvrda_etl:
+      name: "[${bundle.target}] trvrda_etl"
+      development: true
+      edition: ADVANCED
+      channel: CURRENT
+      catalog: ${var.catalog}
+      target: ${var.schema}
+      libraries:
+        - file:
+            path: ../../trvrda/src/trvrda_etl/transformations/main.py
+      configuration:
+        source_path: ${var.source_path}
+        my_target_schema: ${var.schema}
+        my_target_catalog: ${var.catalog}
+      serverless: true

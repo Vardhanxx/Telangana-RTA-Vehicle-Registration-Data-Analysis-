@@ -2,7 +2,7 @@ variables:
   catalog:
     description: Catalog to use
   schema:
-    description: Schema to use
+    description: Target schema for pipeline
   source_path:
     description: Data source path (read)
 
@@ -17,5 +17,3 @@ targets:
       catalog: trvrda
       schema: prod
       source_path: /Volumes/workspace/default/my_data_that_i_bought/trans data/
-
-  

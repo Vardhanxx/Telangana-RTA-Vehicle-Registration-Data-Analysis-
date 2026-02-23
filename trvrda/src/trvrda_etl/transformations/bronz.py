@@ -1,9 +1,13 @@
 import dlt
 from pyspark.sql.functions import col, lit
 from pyspark.sql.types import StringType
+from pyspark.sql import SparkSession
 
 # Fetch the value assigned to the key in YAML
+spark = SparkSession.builder.getOrCreate()
 source_path = spark.conf.get("source_path")
+schema_name = spark.conf.get("my_target_schema")
+catalog_name = spark.conf.get("my_target_catalog")
 
 @dlt.table(
     name="rta_bronze",
