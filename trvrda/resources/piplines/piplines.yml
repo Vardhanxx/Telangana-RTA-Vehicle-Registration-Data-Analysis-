@@ -9,7 +9,7 @@ resources:
       target: ${var.schema}
       libraries:
         - file:
-            path: ../../trvrda/src/trvrda_etl/transformations/main.py
+            path: ../../src/trvrda_etl/transformations/main.py
       configuration:
         source_path: ${var.source_path}
         my_target_schema: ${var.schema}
