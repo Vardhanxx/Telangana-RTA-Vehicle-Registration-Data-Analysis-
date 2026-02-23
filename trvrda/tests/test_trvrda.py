@@ -157,7 +157,7 @@ def test_tevrda(spark_session):
     assert row_valid.RTA_ID is not None
     assert row_valid.VEHICLE_KEY == "SWIFT | VXI"
 
-    print("\n✅ tevrda: All Gold Layer transformations validated!")
+    print("\n tevrda: All Gold Layer transformations validated!")
 
 if __name__ == "__main__":
     # If running directly, trigger pytest
