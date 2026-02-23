@@ -1,0 +1,21 @@
+variables:
+  catalog:
+    description: Catalog to use
+  schema:
+    description: Schema to use
+  source_path:
+    description: Data source path (read)
+
+targets:
+  dev:
+    variables:
+      catalog: trvrda
+      schema: dev
+      source_path: /Volumes/rta_dlt/incremental_schema/incremental_volume_rta
+  prod:
+    variables:
+      catalog: trvrda
+      schema: prod
+      source_path: /Volumes/workspace/default/my_data_that_i_bought/trans data/
+
+  
