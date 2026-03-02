@@ -35,6 +35,13 @@ jobs:
       - name: Deploy Databricks Bundle (Dev)
         working-directory: trvrda
         run: databricks bundle deploy -t dev
+      - name: Run Databricks Pipeline (Dev)
+        working-directory: trvrda
+        run: |
+          databricks pipelines list --output json > pipelines.json
+          PIPELINE_ID=$(jq -r '.[] | select(.name=="[dev vardhanxxv] [dev] trvrda_etl") | .pipeline_id' pipelines.json)
+          if [ -z "$PIPELINE_ID" ]; then echo "Pipeline not found!"; exit 1; fi
+          databricks pipelines start --pipeline-id "$PIPELINE_ID"
 
   prod-pipeline:
     if: github.ref == 'refs/heads/main'
@@ -64,3 +71,10 @@ jobs:
       - name: Deploy Databricks Bundle (Prod)
         working-directory: trvrda
         run: databricks bundle deploy -t prod
+      - name: Run Databricks Pipeline (Prod)
+        working-directory: trvrda
+        run: |
+          databricks pipelines list --output json > pipelines.json
+          PIPELINE_ID=$(jq -r '.[] | select(.name=="[prod vardhanxxv] [prod] trvrda_etl") | .pipeline_id' pipelines.json)
+          if [ -z "$PIPELINE_ID" ]; then echo "Pipeline not found!"; exit 1; fi
+          databricks pipelines start --pipeline-id "$PIPELINE_ID"
