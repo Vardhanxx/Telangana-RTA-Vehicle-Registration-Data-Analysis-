@@ -35,10 +35,13 @@ jobs:
         run: pytest tests/
 
       - name: Validate Bundle Configuration
+        working-directory: assetbundle
         run: databricks bundle validate -t prod
 
       - name: Deploy to Production
+        working-directory: assetbundle
         run: databricks bundle deploy -t prod
 
       - name: Run DLT Pipeline
+        working-directory: assetbundle
         run: databricks bundle run -t prod
