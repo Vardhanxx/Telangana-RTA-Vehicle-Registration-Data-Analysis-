@@ -2,7 +2,7 @@ resources:
   pipelines:
     trvrda_etl:
       name: "[${bundle.target}] trvrda_etl"
-      development: true
+      development: false
       edition: ADVANCED
       channel: CURRENT
       catalog: ${var.catalog}
