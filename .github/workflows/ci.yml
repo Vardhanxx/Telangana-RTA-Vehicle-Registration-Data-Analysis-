@@ -37,7 +37,7 @@ jobs:
         run: databricks bundle deploy -t dev
       - name: Run Databricks Pipeline (Dev)
         working-directory: trvrda
-        run: databricks pipelines run --name "[dev vardhanxxv] [dev] trvrda_etl"
+        run: databricks pipelines run trvrda_etl
 
   prod-pipeline:
     if: github.ref == 'refs/heads/main'
@@ -69,4 +69,4 @@ jobs:
         run: databricks bundle deploy -t prod
       - name: Run Databricks Pipeline (Prod)
         working-directory: trvrda
-        run: databricks pipelines run --name "[prod vardhanxxv] [prod] trvrda_etl"
+        run: databricks pipelines run trvrda_etl
