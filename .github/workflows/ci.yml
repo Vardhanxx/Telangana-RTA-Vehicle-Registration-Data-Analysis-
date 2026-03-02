@@ -16,28 +16,49 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: pip
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          pip install jq
+
       - name: Run Unit Tests
         run: pytest tests/
+
       - name: Validate Databricks Bundle (Dev)
         working-directory: trvrda
         run: databricks bundle validate -t dev
+
       - name: Deploy Databricks Bundle (Dev)
         working-directory: trvrda
         run: databricks bundle deploy -t dev
-      - name: Run Databricks Pipeline (Dev)
+
+      - name: Trigger Databricks Pipeline (Dev)
+        id: run_pipeline
         working-directory: trvrda
-        run: databricks pipelines run trvrda_etl
+        run: |
+          RUN_ID=$(databricks pipelines run trvrda_etl --output JSON | jq -r '.run_id')
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+
+      - name: Monitor Pipeline Run (Dev)
+        id: monitor
+        run: |
+          STATUS="RUNNING"
+          while [ "$STATUS" == "RUNNING" ]; do
+            sleep 30
+            STATUS=$(databricks pipelines get --pipeline-id trvrda_etl --run-id ${{ steps.run_pipeline.outputs.run_id }} --output JSON | jq -r '.state')
+            echo "Pipeline status: $STATUS"
+          done
+          echo "::set-output name=status::$STATUS"
 
   prod-pipeline:
     if: github.ref == 'refs/heads/main'
@@ -48,25 +69,46 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
           cache: pip
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
           curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          pip install jq
+
       - name: Run Unit Tests
         run: pytest tests/
+
       - name: Validate Databricks Bundle (Prod)
         working-directory: trvrda
         run: databricks bundle validate -t prod
+
       - name: Deploy Databricks Bundle (Prod)
         working-directory: trvrda
         run: databricks bundle deploy -t prod
-      - name: Run Databricks Pipeline (Prod)
+
+      - name: Trigger Databricks Pipeline (Prod)
+        id: run_pipeline
         working-directory: trvrda
-        run: databricks pipelines run trvrda_etl
+        run: |
+          RUN_ID=$(databricks pipelines run trvrda_etl --output JSON | jq -r '.run_id')
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+
+      - name: Monitor Pipeline Run (Prod)
+        id: monitor
+        run: |
+          STATUS="RUNNING"
+          while [ "$STATUS" == "RUNNING" ]; do
+            sleep 30
+            STATUS=$(databricks pipelines get --pipeline-id trvrda_etl --run-id ${{ steps.run_pipeline.outputs.run_id }} --output JSON | jq -r '.state')
+            echo "Pipeline status: $STATUS"
+          done
+          echo "::set-output name=status::$STATUS"
