@@ -34,14 +34,10 @@ jobs:
       - name: Run Unit Tests
         run: pytest tests/
 
-      - name: Validate Bundle Configuration
-        working-directory: assetbundle
+      - name: Validate Databricks Bundle (Prod)
+        working-directory: trvrda
         run: databricks bundle validate -t prod
 
-      - name: Deploy to Production
-        working-directory: assetbundle
+      - name: Deploy Databricks Bundle (Prod)
+        working-directory: trvrda
         run: databricks bundle deploy -t prod
-
-      - name: Run DLT Pipeline
-        working-directory: assetbundle
-        run: databricks bundle run -t prod
