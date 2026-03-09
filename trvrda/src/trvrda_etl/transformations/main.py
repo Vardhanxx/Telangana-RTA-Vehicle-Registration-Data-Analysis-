@@ -132,6 +132,7 @@ def rta_bronze():
                 .load(source_path))
     file_columns = {c.lower().strip(): c for c in raw_df.columns}
     final_selections = []
+    unmatched_targets = []
     for target, synonyms in mapping.items():
         # Ensure the target itself (lowercased) is included in synonyms to handle standard names
         search_list = set([s.lower() for s in synonyms] + [target.lower()])
@@ -140,13 +141,23 @@ def rta_bronze():
             actual_name = file_columns[match]
             final_selections.append(col(f"`{actual_name}`").alias(target))
         else:
+            unmatched_targets.append(target)
             final_selections.append(lit(None).cast(StringType()).alias(target))
+    # DIAGNOSTIC: add all raw source columns so we can inspect actual column names in the data
+    mapped_source_cols = {file_columns[m] for target, synonyms in mapping.items()
+                          for m in [next((s for s in set([s.lower() for s in synonyms] + [target.lower()]) if s in file_columns), None)]
+                          if m}
+    for raw_col_lower, raw_col_actual in file_columns.items():
+        if raw_col_actual not in mapped_source_cols:
+            final_selections.append(col(f"`{raw_col_actual}`").alias(f"_raw_{raw_col_lower}"))
     return raw_df.select(*final_selections)
 
 
 # --- Silver Table (Robust Clean) ---
 @dlt.table(name="rta_silver", comment="Highly robust cleaning table equivalent to standard-rta.py.")
-@dlt.expect_or_drop("valid_registration", "tempRegistrationNumber IS NOT NULL AND length(trim(tempRegistrationNumber)) > 3")
+# DIAGNOSTIC: Using expect (not expect_or_drop) so rows flow through even if tempRegistrationNumber is NULL
+# This lets us see what columns actually exist in the source data. Revert to expect_or_drop after diagnosis.
+@dlt.expect("valid_registration", "tempRegistrationNumber IS NOT NULL AND length(trim(tempRegistrationNumber)) > 3")
 def rta_silver():
     df = dlt.read("rta_bronze")
     
