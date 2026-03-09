@@ -88,7 +88,7 @@ jobs:
             if [[ "$STATE" == "FAILED" || "$STATE" == "CANCELED" ]]; then
               echo "Pipeline update $UPDATE_ID failed with state: $STATE"
               echo "Retrieving pipeline logs for diagnostics..."
-              databricks pipelines logs $PIPELINE_ID --update-id $UPDATE_ID
+              (cd trvrda && databricks pipelines logs --update-id $UPDATE_ID)
               exit 1
             fi
           done
@@ -174,7 +174,7 @@ jobs:
             if [[ "$STATE" == "FAILED" || "$STATE" == "CANCELED" ]]; then
               echo "Pipeline update $UPDATE_ID failed with state: $STATE"
               echo "Retrieving pipeline logs for diagnostics..."
-              databricks pipelines logs $PIPELINE_ID --update-id $UPDATE_ID
+              (cd trvrda && databricks pipelines logs --update-id $UPDATE_ID)
               exit 1
             fi
           done
