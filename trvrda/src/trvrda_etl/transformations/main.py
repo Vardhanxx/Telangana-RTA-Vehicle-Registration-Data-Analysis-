@@ -144,8 +144,9 @@ def rta_bronze():
     raw_df = (spark.readStream.format("cloudFiles")
                 .option("cloudFiles.format", "csv")
                 .option("header", "true")
-                .option("inferSchema", "true")
-                .option("cloudFiles.schemaLocation", f"{source_path}/_checkpoints")
+                .option("inferSchema", "false")
+                .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
+                .option("cloudFiles.schemaLocation", f"{source_path}/_checkpoints_v3")
                 .load(source_path))
 
     # Step 1: Rename columns using the flat mapping (same as apply_autoname in standard-rta.py)
