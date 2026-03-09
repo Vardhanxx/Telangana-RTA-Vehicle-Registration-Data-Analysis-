@@ -46,12 +46,16 @@ jobs:
         id: run_pipeline
         working-directory: trvrda
         run: |
-          # Use bundle deploy in metadata-only mode to get the pipeline ID
-          PIPELINE_ID=$(databricks bundle validate -t dev --output json | jq -r '.resources.pipelines.trvrda_etl.id')
+          # Extract pipeline ID directly from the deployed terraform state
+          STATE_FILE=".databricks/bundle/dev/terraform/terraform.tfstate"
+          PIPELINE_ID=$(jq -r '.resources[] | select(.type == "databricks_pipeline" and .name == "trvrda_etl") | .instances[0].attributes.id // empty' $STATE_FILE | head -n 1)
+          
           if [ -z "$PIPELINE_ID" ] || [ "$PIPELINE_ID" == "null" ]; then
-            # Fallback if validate doesn't work as expected
-            PIPELINE_ID=$(databricks bundle deploy -t dev --output json | jq -r '.resources.pipelines.trvrda_etl.id')
+             echo "Failed to extract PIPELINE_ID from terraform state! Falling back to CLI search..."
+             PIPELINE_ID=$(databricks pipelines list --output JSON | jq -r '.[] | select(.name == "[dev] trvrda_etl") | .pipeline_id' | head -n 1)
           fi
+          
+          echo "Monitoring pipeline: $PIPELINE_ID"
           echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
           # Trigger the run and ignore the CLI bug exit code
           databricks pipelines run $PIPELINE_ID --output JSON || echo "Pipeline triggered, ignoring CLI bug code"
@@ -118,10 +122,16 @@ jobs:
         id: run_pipeline
         working-directory: trvrda
         run: |
-          PIPELINE_ID=$(databricks bundle validate -t prod --output json | jq -r '.resources.pipelines.trvrda_etl.id')
+          # Extract pipeline ID directly from the deployed terraform state
+          STATE_FILE=".databricks/bundle/prod/terraform/terraform.tfstate"
+          PIPELINE_ID=$(jq -r '.resources[] | select(.type == "databricks_pipeline" and .name == "trvrda_etl") | .instances[0].attributes.id // empty' $STATE_FILE | head -n 1)
+          
           if [ -z "$PIPELINE_ID" ] || [ "$PIPELINE_ID" == "null" ]; then
-             PIPELINE_ID=$(databricks bundle deploy -t prod --output json | jq -r '.resources.pipelines.trvrda_etl.id')
+             echo "Failed to extract PIPELINE_ID from terraform state! Falling back to CLI search..."
+             PIPELINE_ID=$(databricks pipelines list --output JSON | jq -r '.[] | select(.name == "[prod] trvrda_etl") | .pipeline_id' | head -n 1)
           fi
+          
+          echo "Monitoring pipeline: $PIPELINE_ID"
           echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
           # Trigger the run and ignore the CLI bug exit code
           databricks pipelines run $PIPELINE_ID --output JSON || echo "Pipeline triggered, ignoring CLI bug code"
