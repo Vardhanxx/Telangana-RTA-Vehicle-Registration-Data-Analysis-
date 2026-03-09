@@ -47,25 +47,31 @@ jobs:
         id: run_pipeline
         working-directory: trvrda
         run: |
-          PIPELINE_ID="trvrda_etl"
-          echo "Triggering pipeline: $PIPELINE_ID"
-          databricks pipelines run $PIPELINE_ID --output JSON
+          # Use bundle run to trigger. In development mode, it might try to monitor.
+          # We manually trigger and then poll to avoid the event-fetching bug.
+          PIPELINE_ID=$(databricks bundle deploy -t dev --output json | jq -r '.resources.pipelines.trvrda_etl.id')
           echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
+          databricks pipelines run $PIPELINE_ID
 
       - name: Monitor Pipeline Run (Dev)
         id: monitor
         run: |
           PIPELINE_ID=${{ steps.run_pipeline.outputs.pipeline_id }}
-          STATUS="RUNNING"
           echo "Monitoring pipeline: $PIPELINE_ID"
-          while [ "$STATUS" == "RUNNING" ]; do
+          STATE="INITIALIZING"
+          while [[ "$STATE" == "INITIALIZING" || "$STATE" == "SETTING_UP" || "$STATE" == "RUNNING" || "$STATE" == "STARTING" ]]; do
             sleep 30
-            STATUS=$(databricks pipelines get $PIPELINE_ID --output JSON | jq -r '.latest_update.state // "RUNNING"')
-            echo "Pipeline status: $STATUS"
+            STATE=$(databricks pipelines get $PIPELINE_ID --output JSON | jq -r '.latest_update.state // "UNKNOWN"')
+            echo "Current state: $STATE"
+            if [[ "$STATE" == "COMPLETED" || "$STATE" == "FINISHED" ]]; then
+              echo "Pipeline completed successfully."
+              exit 0
+            fi
+            if [[ "$STATE" == "FAILED" || "$STATE" == "CANCELED" ]]; then
+              echo "Pipeline failed with state: $STATE"
+              exit 1
+            fi
           done
-          echo "Final pipeline status: $STATUS"
-          echo "status=$STATUS" >> $GITHUB_OUTPUT
-          echo "Pipeline $PIPELINE_ID finished with status $STATUS"
 
   prod-pipeline:
     if: github.ref == 'refs/heads/main'
@@ -106,22 +112,26 @@ jobs:
         id: run_pipeline
         working-directory: trvrda
         run: |
-          PIPELINE_ID="trvrda_etl"
-          echo "Triggering pipeline: $PIPELINE_ID"
-          databricks pipelines run $PIPELINE_ID --output JSON
+          PIPELINE_ID=$(databricks bundle deploy -t prod --output json | jq -r '.resources.pipelines.trvrda_etl.id')
           echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
+          databricks pipelines run $PIPELINE_ID
 
       - name: Monitor Pipeline Run (Prod)
         id: monitor
         run: |
           PIPELINE_ID=${{ steps.run_pipeline.outputs.pipeline_id }}
-          STATUS="RUNNING"
           echo "Monitoring pipeline: $PIPELINE_ID"
-          while [ "$STATUS" == "RUNNING" ]; do
+          STATE="INITIALIZING"
+          while [[ "$STATE" == "INITIALIZING" || "$STATE" == "SETTING_UP" || "$STATE" == "RUNNING" || "$STATE" == "STARTING" ]]; do
             sleep 30
-            STATUS=$(databricks pipelines get $PIPELINE_ID --output JSON | jq -r '.latest_update.state // "RUNNING"')
-            echo "Pipeline status: $STATUS"
+            STATE=$(databricks pipelines get $PIPELINE_ID --output JSON | jq -r '.latest_update.state // "UNKNOWN"')
+            echo "Current state: $STATE"
+            if [[ "$STATE" == "COMPLETED" || "$STATE" == "FINISHED" ]]; then
+              echo "Pipeline completed successfully."
+              exit 0
+            fi
+            if [[ "$STATE" == "FAILED" || "$STATE" == "CANCELED" ]]; then
+              echo "Pipeline failed with state: $STATE"
+              exit 1
+            fi
           done
-          echo "Final pipeline status: $STATUS"
-          echo "status=$STATUS" >> $GITHUB_OUTPUT
-          echo "Pipeline $PIPELINE_ID finished with status $STATUS"
