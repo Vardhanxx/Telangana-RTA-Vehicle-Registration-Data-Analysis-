@@ -68,8 +68,8 @@ Telangana-RTA-Vehicle-Registration-Data-Analysis-
 │   │   ├── settings.json
 │   │   └── __builtins__.pyi
 │   ├── resources/
-│   │   ├── piplines/
-│   │   │   └── piplines.yml
+│   │   ├── pipelines/
+│   │   │   └── pipelines.yml
 │   │   └── variables/
 │   │       └── variables.yml
 │   └── src/
