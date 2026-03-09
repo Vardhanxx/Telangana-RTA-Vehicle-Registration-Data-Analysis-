@@ -31,6 +31,3 @@ targets:
       host: https://dbc-16688268-4222.cloud.databricks.com
       # We explicitly deploy to /Workspace/Users/vardhanxxv@gmail.com to make sure we only have a single copy.
       root_path: /Workspace/Users/vardhanxxv@gmail.com/.bundle/${bundle.name}/${bundle.target}
-    permissions:
-      - group_name: admins
-        level: CAN_MANAGE
