@@ -57,8 +57,10 @@ jobs:
           
           echo "Monitoring pipeline: $PIPELINE_ID"
           echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
-          # Trigger the run and ignore the CLI bug exit code
-          databricks pipelines run $PIPELINE_ID --output JSON || echo "Pipeline triggered, ignoring CLI bug code"
+          
+          # Fire-and-forget trigger using the Databricks REST API. 
+          # This completely bypasses the buggy CLI monitoring loop.
+          databricks api post /api/2.0/pipelines/$PIPELINE_ID/updates --json "{}"
 
       - name: Monitor Pipeline Run (Dev)
         id: monitor
@@ -133,8 +135,10 @@ jobs:
           
           echo "Monitoring pipeline: $PIPELINE_ID"
           echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
-          # Trigger the run and ignore the CLI bug exit code
-          databricks pipelines run $PIPELINE_ID --output JSON || echo "Pipeline triggered, ignoring CLI bug code"
+          
+          # Fire-and-forget trigger using the Databricks REST API. 
+          # This completely bypasses the buggy CLI monitoring loop.
+          databricks api post /api/2.0/pipelines/$PIPELINE_ID/updates --json "{}"
 
       - name: Monitor Pipeline Run (Prod)
         id: monitor
