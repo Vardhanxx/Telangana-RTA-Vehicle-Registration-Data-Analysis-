@@ -101,63 +101,77 @@ def apply_rta_standardization(df, col_name):
     )
 
 # --- Bronze Table ---
+# Flat source→target mapping (identical to standard-rta.py normalize_colname_map)
+# Key = lowercased source column name, Value = target column name
+COLUMN_RENAME_MAP = {
+    "slno": "slno", "sl_no": "slno",
+    "modeldesc": "modelDesc", "model.description": "modelDesc", "model_desc": "modelDesc",
+    "maker": "makerName", "makername": "makerName", "manufacturername": "makerName",
+    "manufacturer_name": "makerName", "manufacturer": "makerName",
+    "tempregnno": "tempRegistrationNumber", "regnno": "tempRegistrationNumber",
+    "regno": "tempRegistrationNumber", "tempregistrationnumber": "tempRegistrationNumber",
+    "registration_no": "tempRegistrationNumber", "reg_id": "tempRegistrationNumber",
+    "officecode": "OfficeCd", "office_cd": "OfficeCd", "office": "OfficeCd",
+    "officecd": "OfficeCd", "officecd.1": "OfficeCd", "office.cd": "OfficeCd",
+    "office.code": "OfficeCd",
+    "vehicleregndate": "fromdate", "vehregnvaliddate": "todate",
+    "from_date": "fromdate", "to_date": "todate", "fromdate": "fromdate", "todate": "todate",
+    "regn_date": "fromdate", "regn.date": "fromdate", "regn_to_date": "todate",
+    "colour": "colour", "color": "colour",
+    "fueltype": "fuel", "fuel_used": "fuel", "fuel": "fuel", "fuel.type": "fuel",
+    "vehicleclass": "vehicleClass", "classofveh": "vehicleClass", "vehicle.class": "vehicleClass",
+    "seatingcapacity": "seatCapacity", "seat_cap": "seatCapacity",
+    "seatcapacity": "seatCapacity", "seat_capacity": "seatCapacity", "seating.capacity": "seatCapacity",
+    "makeyear": "makeYear", "make_year": "makeYear", "mfg_year": "makeYear",
+    "secondvehicle": "secondVehicle", "issecondvehicle": "secondVehicle", "second.vehicle": "secondVehicle",
+    "category": "category", "veh.category": "category",
+    "transporttype": "transportType", "transport_type": "transportType",
+    "ownershiptype": "OWNERSHIP_TYPE", "ownership_type": "OWNERSHIP_TYPE",
+}
+
+# Golden schema: all columns the pipeline expects after bronze
+GOLDEN_SCHEMA = [
+    "slno", "modelDesc", "makerName", "OfficeCd", "tempRegistrationNumber",
+    "fromdate", "todate", "fuel", "colour", "vehicleClass",
+    "makeYear", "seatCapacity", "category", "secondVehicle", "transportType", "OWNERSHIP_TYPE"
+]
+
 @dlt.table(
     name="rta_bronze",
-    comment="Raw ingestion from CSV with dynamic synonym mapping."
+    comment="Raw ingestion from CSV with auto-column-normalization (same logic as standard-rta.py)."
 )
 def rta_bronze():
-    mapping = {
-        "tempRegistrationNumber": ["regnno", "regno", "tempregnno", "registration_no", "reg_id"],
-        "OfficeCd": ["officecode", "office_cd", "office.cd", "office.code", "office", "officecd.1"],
-        "fromdate": ["vehicleregndate", "regn_date", "regn.date", "from_date"],
-        "todate": ["vehregnvaliddate", "to_date", "regn_to_date"],
-        "seatCapacity": ["seatingcapacity", "seat_capacity", "seating.capacity", "seat_cap", "seatcapacity"],
-        "vehicleClass": ["vehicleclass", "classofveh", "vehicle.class"],
-        "modelDesc": ["modeldesc", "model.description", "model_desc"],
-        "makerName": ["maker", "makername", "manufacturer", "manufacturername", "manufacturer_name"],
-        "fuel": ["fueltype", "fuel.type", "fuel_used", "fuel"],
-        "secondVehicle": ["secondvehicle", "issecondvehicle", "second.vehicle"],
-        "category": ["category", "veh.category"],
-        "colour": ["colour", "color"],
-        "makeYear": ["makeyear", "make_year", "mfg_year"],
-        "transportType": ["transporttype", "transport_type"],
-        "OWNERSHIP_TYPE": ["ownershiptype", "ownership_type"],
-        "slno": ["slno", "sl_no"]
-    }
     raw_df = (spark.readStream.format("cloudFiles")
                 .option("cloudFiles.format", "csv")
                 .option("header", "true")
                 .option("inferSchema", "true")
                 .option("cloudFiles.schemaLocation", f"{source_path}/_checkpoints")
                 .load(source_path))
-    file_columns = {c.lower().strip(): c for c in raw_df.columns}
-    final_selections = []
-    unmatched_targets = []
-    for target, synonyms in mapping.items():
-        # Ensure the target itself (lowercased) is included in synonyms to handle standard names
-        search_list = set([s.lower() for s in synonyms] + [target.lower()])
-        match = next((s for s in search_list if s in file_columns), None)
-        if match:
-            actual_name = file_columns[match]
-            final_selections.append(col(f"`{actual_name}`").alias(target))
-        else:
-            unmatched_targets.append(target)
-            final_selections.append(lit(None).cast(StringType()).alias(target))
-    # DIAGNOSTIC: add all raw source columns so we can inspect actual column names in the data
-    mapped_source_cols = {file_columns[m] for target, synonyms in mapping.items()
-                          for m in [next((s for s in set([s.lower() for s in synonyms] + [target.lower()]) if s in file_columns), None)]
-                          if m}
-    for raw_col_lower, raw_col_actual in file_columns.items():
-        if raw_col_actual not in mapped_source_cols:
-            final_selections.append(col(f"`{raw_col_actual}`").alias(f"_raw_{raw_col_lower}"))
-    return raw_df.select(*final_selections)
+
+    # Step 1: Rename columns using the flat mapping (same as apply_autoname in standard-rta.py)
+    rename_map = {c: COLUMN_RENAME_MAP[c.lower().strip()]
+                  for c in raw_df.columns
+                  if c.lower().strip() in COLUMN_RENAME_MAP}
+    df = raw_df
+    for old_name, new_name in rename_map.items():
+        if old_name.lower().strip() != new_name.lower().strip() and old_name in df.columns:
+            df = df.withColumnRenamed(old_name, new_name)
+
+    # Step 2: Drop duplicate OfficeCd.1 if present (same as standard-rta.py)
+    if 'OfficeCd.1' in df.columns:
+        df = df.drop('OfficeCd.1')
+
+    # Step 3: Fill missing golden schema columns with NULL
+    for c in GOLDEN_SCHEMA:
+        if c not in df.columns:
+            df = df.withColumn(c, lit(None).cast(StringType()))
+
+    return df.select(*GOLDEN_SCHEMA)
 
 
 # --- Silver Table (Robust Clean) ---
 @dlt.table(name="rta_silver", comment="Highly robust cleaning table equivalent to standard-rta.py.")
-# DIAGNOSTIC: Using expect (not expect_or_drop) so rows flow through even if tempRegistrationNumber is NULL
-# This lets us see what columns actually exist in the source data. Revert to expect_or_drop after diagnosis.
-@dlt.expect("valid_registration", "tempRegistrationNumber IS NOT NULL AND length(trim(tempRegistrationNumber)) > 3")
+@dlt.expect_or_drop("valid_registration", "tempRegistrationNumber IS NOT NULL AND length(trim(tempRegistrationNumber)) > 3")
 def rta_silver():
     df = dlt.read("rta_bronze")
     
