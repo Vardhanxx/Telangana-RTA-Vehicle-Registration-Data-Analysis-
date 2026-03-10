@@ -162,12 +162,13 @@ def rta_bronze():
     df = raw_df
     for target_name, source_cols in target_groups.items():
         # Use coalesce to merge data from multiple potential source columns (e.g. modelDesc and model_desc)
-        df = df.withColumn(target_name, coalesce(*[raw_df[sc] for sc in source_cols]))
+        # Use col(f"`{sc}`") to prevent dots in column names from being interpreted as struct fields
+        df = df.withColumn(target_name, coalesce(*[col(f"`{sc}`") for sc in source_cols]))
         
         # Drop source columns if they have a different name than the target to avoid duplicates
         for sc in source_cols:
             if sc != target_name and sc in df.columns:
-                df = df.drop(sc)
+                df = df.drop(col(f"`{sc}`"))
 
     # Step 3: Fill missing golden schema columns with NULL
     for c in GOLDEN_SCHEMA:
