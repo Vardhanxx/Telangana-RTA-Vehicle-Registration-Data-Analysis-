@@ -4,7 +4,7 @@ from pyspark.sql.functions import (
     col, lit, trim, regexp_replace, coalesce, to_date, upper, when, row_number,
     regexp_extract, lower, concat, explode, date_format, substring, levenshtein,
     length, abs as spark_abs, concat_ws, array_join, expr, split, year, month, 
-    dayofmonth, quarter, broadcast
+    dayofmonth, quarter, broadcast, floor
 )
 from pyspark.sql.types import StringType, IntegerType
 from pyspark.sql import Window
