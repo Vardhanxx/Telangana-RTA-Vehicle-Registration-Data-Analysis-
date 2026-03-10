@@ -55,15 +55,39 @@ jobs:
              PIPELINE_ID=$(databricks pipelines list --output JSON | jq -r '.[] | select(.name == "[dev] trvrda_etl") | .pipeline_id' | head -n 1)
           fi
           
+          if [ -z "$PIPELINE_ID" ]; then
+            echo "Error: Could not find Pipeline ID."
+            exit 1
+          fi
           echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
+          echo "Pipeline ID: $PIPELINE_ID"
           
-          # Fire-and-forget trigger using the Databricks REST API. 
-          # Capture the update_id from the response.
-          echo "Triggering pipeline update..."
-          RESPONSE=$(databricks api post /api/2.0/pipelines/$PIPELINE_ID/updates --json "{}")
-          UPDATE_ID=$(echo $RESPONSE | jq -r '.update_id')
+          # Check for existing active update to avoid "active update exists" error
+          echo "Checking for active updates..."
+          ACTIVE_UPDATE=$(databricks pipelines list-updates $PIPELINE_ID --output JSON | jq -r '.updates[]? | select(.state == "INITIALIZING" or .state == "SETTING_UP" or .state == "RUNNING" or .state == "STARTING" or .state == "QUEUED" or .state == "WAITING_FOR_RESOURCES") | .update_id' | head -n 1)
+          
+          if [[ -n "$ACTIVE_UPDATE" && "$ACTIVE_UPDATE" != "null" ]]; then
+            echo "Found active update: $ACTIVE_UPDATE. Adopting it."
+            UPDATE_ID=$ACTIVE_UPDATE
+          else
+            echo "Triggering new pipeline update..."
+            RESPONSE=$(databricks api post /api/2.0/pipelines/$PIPELINE_ID/updates --json "{}" || true)
+            # Check if response contains an error about an active update (race condition)
+            if echo "$RESPONSE" | grep -q "already exists"; then
+               UPDATE_ID=$(databricks pipelines list-updates $PIPELINE_ID --output JSON | jq -r '.updates[0].update_id')
+               echo "Race condition detected. Adopting latest update ID: $UPDATE_ID"
+            else
+               UPDATE_ID=$(echo $RESPONSE | jq -r '.update_id // empty')
+            fi
+          fi
+
+          if [[ -z "$UPDATE_ID" || "$UPDATE_ID" == "null" ]]; then
+            echo "Failed to retrieve Update ID. Response was: $RESPONSE"
+            exit 1
+          fi
+          
           echo "update_id=$UPDATE_ID" >> $GITHUB_OUTPUT
-          echo "Triggered Update ID: $UPDATE_ID"
+          echo "Triggered/Active Update ID: $UPDATE_ID"
 
       - name: Monitor Pipeline Run (Dev)
         id: monitor
@@ -72,11 +96,12 @@ jobs:
           UPDATE_ID=${{ steps.run_pipeline.outputs.update_id }}
           echo "Monitoring Update: $UPDATE_ID for Pipeline: $PIPELINE_ID"
           STATE="INITIALIZING"
+          MAX_RETRIES=5
+          FAILED_COUNT=0
           
-          # Wait and poll for status of this specific update
-          while [[ "$STATE" == "INITIALIZING" || "$STATE" == "SETTING_UP" || "$STATE" == "RUNNING" || "$STATE" == "STARTING" || "$STATE" == "QUEUED" || "$STATE" == "WAITING_FOR_RESOURCES" || "$STATE" == "UNKNOWN" ]]; do
+          while true; do
             sleep 30
-            JSON_OUT=$(databricks pipelines get-update $PIPELINE_ID $UPDATE_ID --output JSON)
+            JSON_OUT=$(databricks pipelines get-update $PIPELINE_ID $UPDATE_ID --output JSON || echo '{"state": "UNKNOWN"}')
             STATE=$(echo $JSON_OUT | jq -r '.update.state // .state // "UNKNOWN"')
             echo "Current state: $STATE"
             
@@ -86,10 +111,22 @@ jobs:
             fi
             
             if [[ "$STATE" == "FAILED" || "$STATE" == "CANCELED" ]]; then
+              # If we just started, give it one more chance in case of transient API issues
+              if [[ $FAILED_COUNT -lt $MAX_RETRIES ]]; then
+                ((FAILED_COUNT++))
+                echo "Warning: Update in $STATE state. Retry $FAILED_COUNT/$MAX_RETRIES..."
+                sleep 10
+                continue
+              fi
               echo "Pipeline update $UPDATE_ID failed with state: $STATE"
               echo "Retrieving pipeline logs for diagnostics..."
-              (cd trvrda && databricks pipelines logs --update-id $UPDATE_ID)
+              (cd trvrda && databricks pipelines logs --update-id $UPDATE_ID || echo "No logs found.")
               exit 1
+            fi
+            
+            # Reset failure count if we are in a valid progress state
+            if [[ "$STATE" == "RUNNING" || "$STATE" == "WAITING_FOR_RESOURCES" ]]; then
+                FAILED_COUNT=0
             fi
           done
 
@@ -141,15 +178,39 @@ jobs:
              PIPELINE_ID=$(databricks pipelines list --output JSON | jq -r '.[] | select(.name == "[prod] trvrda_etl") | .pipeline_id' | head -n 1)
           fi
           
+          if [ -z "$PIPELINE_ID" ]; then
+            echo "Error: Could not find Pipeline ID."
+            exit 1
+          fi
           echo "pipeline_id=$PIPELINE_ID" >> $GITHUB_OUTPUT
+          echo "Pipeline ID: $PIPELINE_ID"
           
-          # Fire-and-forget trigger using the Databricks REST API. 
-          # Capture the update_id from the response.
-          echo "Triggering pipeline update..."
-          RESPONSE=$(databricks api post /api/2.0/pipelines/$PIPELINE_ID/updates --json "{}")
-          UPDATE_ID=$(echo $RESPONSE | jq -r '.update_id')
+          # Check for existing active update to avoid "active update exists" error
+          echo "Checking for active updates..."
+          ACTIVE_UPDATE=$(databricks pipelines list-updates $PIPELINE_ID --output JSON | jq -r '.updates[]? | select(.state == "INITIALIZING" or .state == "SETTING_UP" or .state == "RUNNING" or .state == "STARTING" or .state == "QUEUED" or .state == "WAITING_FOR_RESOURCES") | .update_id' | head -n 1)
+          
+          if [[ -n "$ACTIVE_UPDATE" && "$ACTIVE_UPDATE" != "null" ]]; then
+            echo "Found active update: $ACTIVE_UPDATE. Adopting it."
+            UPDATE_ID=$ACTIVE_UPDATE
+          else
+            echo "Triggering new pipeline update..."
+            RESPONSE=$(databricks api post /api/2.0/pipelines/$PIPELINE_ID/updates --json "{}" || true)
+            # Check if response contains an error about an active update (race condition)
+            if echo "$RESPONSE" | grep -q "already exists"; then
+               UPDATE_ID=$(databricks pipelines list-updates $PIPELINE_ID --output JSON | jq -r '.updates[0].update_id')
+               echo "Race condition detected. Adopting latest update ID: $UPDATE_ID"
+            else
+               UPDATE_ID=$(echo $RESPONSE | jq -r '.update_id // empty')
+            fi
+          fi
+
+          if [[ -z "$UPDATE_ID" || "$UPDATE_ID" == "null" ]]; then
+            echo "Failed to retrieve Update ID. Response was: $RESPONSE"
+            exit 1
+          fi
+          
           echo "update_id=$UPDATE_ID" >> $GITHUB_OUTPUT
-          echo "Triggered Update ID: $UPDATE_ID"
+          echo "Triggered/Active Update ID: $UPDATE_ID"
 
       - name: Monitor Pipeline Run (Prod)
         id: monitor
@@ -158,11 +219,12 @@ jobs:
           UPDATE_ID=${{ steps.run_pipeline.outputs.update_id }}
           echo "Monitoring Update: $UPDATE_ID for Pipeline: $PIPELINE_ID"
           STATE="INITIALIZING"
+          MAX_RETRIES=5
+          FAILED_COUNT=0
           
-          # Wait and poll for status of this specific update
-          while [[ "$STATE" == "INITIALIZING" || "$STATE" == "SETTING_UP" || "$STATE" == "RUNNING" || "$STATE" == "STARTING" || "$STATE" == "QUEUED" || "$STATE" == "WAITING_FOR_RESOURCES" || "$STATE" == "UNKNOWN" ]]; do
+          while true; do
             sleep 30
-            JSON_OUT=$(databricks pipelines get-update $PIPELINE_ID $UPDATE_ID --output JSON)
+            JSON_OUT=$(databricks pipelines get-update $PIPELINE_ID $UPDATE_ID --output JSON || echo '{"state": "UNKNOWN"}')
             STATE=$(echo $JSON_OUT | jq -r '.update.state // .state // "UNKNOWN"')
             echo "Current state: $STATE"
             
@@ -172,9 +234,21 @@ jobs:
             fi
             
             if [[ "$STATE" == "FAILED" || "$STATE" == "CANCELED" ]]; then
+              # If we just started, give it one more chance in case of transient API issues
+              if [[ $FAILED_COUNT -lt $MAX_RETRIES ]]; then
+                ((FAILED_COUNT++))
+                echo "Warning: Update in $STATE state. Retry $FAILED_COUNT/$MAX_RETRIES..."
+                sleep 10
+                continue
+              fi
               echo "Pipeline update $UPDATE_ID failed with state: $STATE"
               echo "Retrieving pipeline logs for diagnostics..."
-              (cd trvrda && databricks pipelines logs --update-id $UPDATE_ID)
+              (cd trvrda && databricks pipelines logs --update-id $UPDATE_ID || echo "No logs found.")
               exit 1
+            fi
+            
+            # Reset failure count if we are in a valid progress state
+            if [[ "$STATE" == "RUNNING" || "$STATE" == "WAITING_FOR_RESOURCES" ]]; then
+                FAILED_COUNT=0
             fi
           done
