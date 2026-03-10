@@ -1,0 +1,19 @@
+resources:
+  jobs:
+    Telangana_RTA_Vehicle_Registration_Data_Analysis_job:
+      name: Telangana-RTA-Vehicle-Registration-Data-Analysis-job
+      tasks:
+        - task_key: Telangana-RTA-Vehicle-Registration-Data-Analysis-piplinejob
+          pipeline_task:
+            pipeline_id: d28d6655-493e-4177-852c-e1944e2732a1
+            full_refresh: false
+        - task_key: cicd-refresh-dahboard-rta
+          depends_on:
+            - task_key: Telangana-RTA-Vehicle-Registration-Data-Analysis-piplinejob
+          dashboard_task:
+            subscription: {}
+            warehouse_id: ac6dbe2f561688cc
+            dashboard_id: 01f10cbcb99212749f6c716e7322a5de
+      queue:
+        enabled: true
+      performance_target: PERFORMANCE_OPTIMIZED
