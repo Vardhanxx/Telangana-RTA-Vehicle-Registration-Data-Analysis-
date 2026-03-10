@@ -125,15 +125,13 @@ COLUMN_RENAME_MAP = {
     "makeyear": "makeYear", "make_year": "makeYear", "mfg_year": "makeYear",
     "secondvehicle": "secondVehicle", "issecondvehicle": "secondVehicle", "second.vehicle": "secondVehicle",
     "category": "category", "veh.category": "category",
-    "transporttype": "transportType", "transport_type": "transportType",
-    "ownershiptype": "OWNERSHIP_TYPE", "ownership_type": "OWNERSHIP_TYPE",
 }
 
 # Golden schema: all columns the pipeline expects after bronze
 GOLDEN_SCHEMA = [
     "slno", "modelDesc", "makerName", "OfficeCd", "tempRegistrationNumber",
     "fromdate", "todate", "fuel", "colour", "vehicleClass",
-    "makeYear", "seatCapacity", "category", "secondVehicle", "transportType", "OWNERSHIP_TYPE"
+    "makeYear", "seatCapacity", "category", "secondVehicle"
 ]
 
 @dlt.table(
@@ -205,8 +203,8 @@ def rta_silver():
     # Keys prep
     df = df.withColumn("tempRegistrationNumber", regexp_replace(upper(trim(col("tempRegistrationNumber"))), r"^(TS|TG|AP)-?", "$1"))
     
-    # Rare cases
-    df = df.withColumn("seatCapacity", regexp_replace(col("seatCapacity"), r"[^0-9]", ""))
+    # Rare cases - handle numeric extraction robustly (e.g. "2.0" -> 2)
+    df = df.withColumn("seatCapacity", floor(col("seatCapacity").cast("double")).cast(StringType()))
 
     # 1. Standard text trimming
     text_cols = ["modelDesc", "makerName", "OfficeCd", "tempRegistrationNumber",
@@ -315,7 +313,11 @@ def rta_silver():
     # 12. Ownership & Transport Type
     df = df \
         .withColumn("OWNERSHIP_TYPE", when(lower(trim(coalesce(col("secondVehicle"), lit("")))).isin("y", "yes", "1"), lit("PRE_OWNED")).otherwise(lit("NEW"))) \
-        .withColumn("TRANSPORT_TYPE", when(col("vehicleClass").rlike(r"(?i)CONTRACT|STAGE|GOODS|BUS|TAXI|AUTORICKSHAW|TRANSPORT"), lit("TRANSPORT")).otherwise(lit("NON_TRANSPORT")))
+        .withColumn("TRANSPORT_TYPE", 
+            when(lower(trim(col("category"))).rlike("(?i)non.*transport"), lit("NON_TRANSPORT"))
+            .when(lower(trim(col("category"))).rlike("(?i)transport"), lit("TRANSPORT"))
+            .when(col("vehicleClass").rlike(r"(?i)CONTRACT|STAGE|GOODS|BUS|TAXI|AUTORICKSHAW|TRANSPORT"), lit("TRANSPORT"))
+            .otherwise(lit("NON_TRANSPORT")))
 
     # 13. RTA lookup and standardization
     df = apply_reverse_rta_lookup(df, "OfficeCd")
