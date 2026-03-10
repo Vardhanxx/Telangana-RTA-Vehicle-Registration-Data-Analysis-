@@ -1,6 +1,7 @@
 # Telangana RTA Vehicle Registration Data Analysis
 
-![alt text](rtaprojectimage.png)
+<img width="1379" height="752" alt="rtaprojectimage" src="https://github.com/user-attachments/assets/b2e95e7a-f475-492a-89ad-028d86d35622" />
+
 
 ## Project Overview
 
