@@ -149,18 +149,25 @@ def rta_bronze():
                 .option("cloudFiles.schemaLocation", f"{source_path}/_checkpoints_v3")
                 .load(source_path))
 
-    # Step 1: Rename columns using the flat mapping (same as apply_autoname in standard-rta.py)
-    rename_map = {c: COLUMN_RENAME_MAP[c.lower().strip()]
-                  for c in raw_df.columns
-                  if c.lower().strip() in COLUMN_RENAME_MAP}
+    # Step 1: Group columns by target name and coalesce duplicates (fixes ambiguous reference errors)
+    target_groups = {}
+    for c in raw_df.columns:
+        norm_c = c.lower().strip()
+        if norm_c in COLUMN_RENAME_MAP:
+            target_name = COLUMN_RENAME_MAP[norm_c]
+            if target_name not in target_groups:
+                target_groups[target_name] = []
+            target_groups[target_name].append(c)
+    
     df = raw_df
-    for old_name, new_name in rename_map.items():
-        if old_name.lower().strip() != new_name.lower().strip() and old_name in df.columns:
-            df = df.withColumnRenamed(old_name, new_name)
-
-    # Step 2: Drop duplicate OfficeCd.1 if present (same as standard-rta.py)
-    if 'OfficeCd.1' in df.columns:
-        df = df.drop('OfficeCd.1')
+    for target_name, source_cols in target_groups.items():
+        # Use coalesce to merge data from multiple potential source columns (e.g. modelDesc and model_desc)
+        df = df.withColumn(target_name, coalesce(*[raw_df[sc] for sc in source_cols]))
+        
+        # Drop source columns if they have a different name than the target to avoid duplicates
+        for sc in source_cols:
+            if sc != target_name and sc in df.columns:
+                df = df.drop(sc)
 
     # Step 3: Fill missing golden schema columns with NULL
     for c in GOLDEN_SCHEMA:
