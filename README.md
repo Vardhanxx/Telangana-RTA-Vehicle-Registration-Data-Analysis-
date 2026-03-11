@@ -1,6 +1,6 @@
 # Telangana RTA Vehicle Registration Data Analysis
 
-https://github.com/Vardhanxx/Telangana-RTA-Vehicle-Registration-Data-Analysis-/raw/dev/docs/assets/rta-clip2.mp4
+### 📺 [View Project Demo & Screenshots](./docs/assets/GALLERY.md)
 
 <img width="1379" height="752" alt="rtaprojectimage" src="https://github.com/user-attachments/assets/b2e95e7a-f475-492a-89ad-028d86d35622" />
 
