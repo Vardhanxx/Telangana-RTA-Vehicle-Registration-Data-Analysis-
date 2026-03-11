@@ -12,6 +12,10 @@ This repository provides an end-to-end solution for analyzing Telangana RTA Vehi
 
 ---
 
+https://github.com/user-attachments/assets/8e06d645-d89e-4eb5-8a59-c427afc19c0b
+
+
+
 ## Development Workflow
 * **Local Setup:**
     * Clone the repo, install Python dependencies via `requirements.txt`.
