@@ -1,185 +1,72 @@
-# Telangana RTA Vehicle Registration Data Analysis
-
-### 📺 Project Demo
-
-<video src="https://github.com/user-attachments/assets/8e06d645-d89e-4eb5-8a59-c427afc19c0b" controls width="100%"></video>
-
-
-<img width="1379" height="752" alt="rtaprojectimage" src="https://github.com/user-attachments/assets/b2e95e7a-f475-492a-89ad-028d86d35622" />
-
+# Telangana-RTA-Vehicle-Registration-Data-Analysis-
 
 ## Project Overview
+This repository provides an end-to-end solution for analyzing Telangana RTA Vehicle Registration data. It covers the entire workflow from development, code testing, CI/CD automation, infrastructure provisioning, and real-data engineering best practices—making it a practical, real-world project template for analytics and ETL workloads.
 
-
-This repository provides a **full-stack, production-ready solution** for analyzing Telangana RTA Vehicle Registration data. It demonstrates modern data engineering practices, CI/CD automation, and scalable analytics architecture using **Databricks**, **DLT pipelines**, and **Terraform**.
-
-The project is designed for **end-to-end development, testing, deployment, and dashboarding**, following real-world industry standards.
-
-**Key Goals:**
-
-* Ingest, transform, and analyze vehicle registration datasets
-* Build modular, production-ready ETL/DLT pipelines
-* Ensure **code quality and reliability** through automated testing with `pytest`
-* Implement **CI/CD pipelines** using GitHub Actions
-* Showcase **Infrastructure-as-Code (IaC)** using Databricks Asset Bundles and Terraform
-* Maintain **data governance and environment separation** for DEV and PROD
+**Goals:**
+* Ingest, transform, and explore vehicle registration datasets
+* Demonstrate CI/CD automation with GitHub Actions
+* Ensure code quality and reproducibility with robust testing via pytest
+* Showcase Infrastructure-as-Code (IaC) using Databricks Asset Bundles and Terraform
+* Employ data engineering standards for modular, production-ready pipelines
 
 ---
 
-## Architecture & Environment Setup
+https://github.com/user-attachments/assets/8e06d645-d89e-4eb5-8a59-c427afc19c0b
 
-The solution is built with a **DEV-PROD schema separation** and **view-driven dashboards** for maximum reliability:
 
-### 1. Environment Separation
 
-| Environment | Schema        | Purpose                                              |
-| ----------- | ------------- | ---------------------------------------------------- |
-| DEV         | `trvrda.dev`  | Sample/lower-volume data for iterative testing       |
-| PROD        | `trvrda.prod` | Full production dataset for dashboards and analytics |
+## Development Workflow
+* **Local Setup:**
+    * Clone the repo, install Python dependencies via `requirements.txt`.
+    * Use development configs in `trvrda/databricks.yml` & `.databricks/bundle/dev/`.
+* **Coding Standards:**
+    * Follow modular folder and file structure; leverage repo sub-README.md files for context.
+    * Employ clear docstrings, type hints, and maintainable code.
+* **Typical Tasks:**
+    * Build ETL pipelines, run exploratory scripts, update configuration files, and contribute to transformations.
 
-### 2. Views for Stable Dashboards
+## CI/CD with GitHub Actions
+* Automated builds and tests are defined in `.github/workflows/ci.yml`.
+* On each push/pull request:
+    * Python tests run via pytest
+    * Linting and static checks
+    * Future expansions: deployment triggers, artifact publishing.
 
-* Views are created in both DEV and PROD schemas with **identical names and column structures**.
-* Example:
+## Testing: Pytest
+* Tests are in the `tests/` directory.
+* Run tests locally:
+    * Install test dependencies (`pip install -r requirements.txt`)
+    * Execute `pytest` in the project root
+* Testing is automated in CI/CD pipelines.
 
-  * DEV: `trvrda.dev.fact_fuzzy_registrations`
-  * PROD: `trvrda.prod.fact_fuzzy_registrations`
-* Dashboard queries **always reference views**, not raw tables, ensuring schema-agnostic logic.
+## Infrastructure as Code (IaC): Asset Bundles & Terraform
+* Databricks environment and jobs are provisioned using Asset Bundles (`trvrda/.databricks/bundle/dev/`) and Terraform files.
+* Update bundle configs for new clusters or data sources.
+* Run Terraform locally for state management and reproducible deployments.
 
-### 3. ETL & DLT Pipeline
+## Data Engineering Lifecycle
+* Modular ETL code is under `trvrda/src/trvrda_etl/` (transformations & explorations).
+* Adopts Bronze-Silver-Gold architecture for structured data processing.
+* Use job templates (e.g., `trvrda_etl.pipeline.yml`, `sample_job.job.yml`) for reusable executions.
 
-* **Bronze-Silver-Gold architecture** for structured, incremental data processing.
-* **DLT pipelines** process raw data, perform transformations, and populate tables for dashboard consumption.
-* Pipelines are **parameterized** to switch between DEV and PROD schemas.
+## Real-World Best Practices
+* Version control for code, configs, and data assets
+* End-to-end automation: local-dev → CI/CD → IaC → production
+* Code quality, reproducibility, and modularity enable maintainable, scalable workflows
+* Data governance considerations in pipeline design & artifacts
 
-### 4. Dashboard Architecture
+## Usage Instructions
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Review and update configs in `trvrda/databricks.yml` and `.databricks/bundle/dev/`
+4. Run `pytest` to validate code
+5. Use Databricks CLI / Terraform to provision environments
+6. Launch and monitor ETL pipelines and notebook explorations
 
-* Dashboards consume **DEV or PROD views**.
-* Widget logic remains **identical across environments**, simplifying promotion.
-* Example: `SELECT * FROM trvrda.dev.fact_fuzzy_registrations` in DEV and `SELECT * FROM trvrda.prod.fact_fuzzy_registrations` in PROD.
-
----
-
-## Workflow: End-to-End
-
-**Development in DEV**
-
-* Use **sample datasets** in `trvrda.dev` schema
-* Create and validate views
-* Run exploratory notebooks and transformations
-
-**Code Testing**
-
-* **Pytest** validates notebooks and Python modules
-* Tests are run **externally**, not inside DLT pipelines
-* CI/CD integration ensures pipelines only trigger if tests pass
-
-**CI/CD Automation**
-
-* GitHub Actions runs on each push/pull request:
-
-  * Linting & static checks
-  * `pytest` execution
-  * Optional: artifact packaging and deployment triggers
-
-**Deployment**
-
-* Use **Databricks CLI / dbx** to deploy asset bundles and pipelines
-* DEV first: run pipeline → verify tables → refresh views → validate dashboard
-* PROD next: promote bundle → run full pipeline → attach dashboard to PROD views
-
-**Monitoring & Reliability**
-
-* Automated job triggers for both **view creation** and **data pipelines**
-* Environment-specific configurations prevent accidental PROD data corruption
-* Dashboards remain **stable and reproducible**
+## Troubleshooting & FAQ
+* For common errors, check logs in CI/CD pipeline and Databricks job output
+* Update or reinstall local Python environment if dependency conflicts arise
+* See submodule README.md files for advanced guides and modular documentation
 
 ---
-
-## Infrastructure as Code (IaC)
-
-* Databricks clusters, jobs, and pipelines are provisioned using **Asset Bundles**
-* Terraform manages state and reproducible deployments
-* Supports **multi-environment deployments** with DEV/PROD configurations
-
----
-
-## Project Structure
-
-```
-trvrda/
-├─ src/trvrda_etl/        # Modular ETL and DLT pipelines
-├─ tests/                 # Pytest test cases for transformations
-├─ .databricks/bundle/    # Asset bundles for DEV/PROD
-├─ trvrda/databricks.yml  # Environment configs
-├─ trvrda_etl.pipeline.yml # Pipeline definition
-├─ sample_job.job.yml      # Job template
-├─ requirements.txt       # Python dependencies
-└─ .github/workflows/ci.yml # CI/CD automation
-```
-
----
-
-## Testing
-
-* Tests ensure **data transformation correctness**, schema compliance, and business logic integrity
-* Run locally:
-
-```bash
-pip install -r requirements.txt
-pytest
-```
-
-* CI/CD pipeline automates testing before deployment
-
----
-
-## Industry Best Practices Applied
-
-* **DEV-PROD separation** for safe, incremental deployments
-* **View-based dashboards** for schema stability
-* **Automated CI/CD with testing** ensures reliability
-* **IaC with Terraform & Asset Bundles** for reproducibility
-* **Modular ETL codebase** for maintainability
-* **Bronze-Silver-Gold data architecture** for incremental processing
-
----
-
-## Quick Start
-
-1. Clone repository:
-
-```bash
-git clone <repo_url>
-cd trvrda
-```
-
-2. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Update environment configs in `trvrda/databricks.yml`
-4. Run tests:
-
-```bash
-pytest
-```
-
-5. Provision DEV cluster & jobs with Databricks CLI / Terraform
-6. Run ETL/DLT pipelines → verify DEV dashboard
-7. Promote to PROD → attach dashboard to PROD views
-
----
-
-## Use Cases
-
-* Vehicle registration trends and insights for Telangana RTA
-* Analysis of registration anomalies or fuzzy matches
-* Automated dashboards for **policy decision-making**
-* Real-world template for **enterprise data engineering** with production-grade pipelines
-
----
-
-This README now **consolidates architecture, workflow, testing, CI/CD, and dashboards**, reflecting **real-world industry practices** for end-to-end data pipelines.
