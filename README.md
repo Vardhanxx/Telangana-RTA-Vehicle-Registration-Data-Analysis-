@@ -2,6 +2,7 @@
 
 ### 📺 [View Project Demo](https://github.com/Vardhanxx/clips/raw/main/chip4.mp4)
 
+
 <img width="1379" height="752" alt="rtaprojectimage" src="https://github.com/user-attachments/assets/b2e95e7a-f475-492a-89ad-028d86d35622" />
 
 
