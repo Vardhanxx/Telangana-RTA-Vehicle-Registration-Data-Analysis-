@@ -1,0 +1,7 @@
+.vscode/
+README.md
+tests/
+docs/
+*.png
+*.jpg
+*.mp4
