@@ -139,12 +139,9 @@ GOLDEN_SCHEMA = [
     comment="Raw ingestion from CSV with auto-column-normalization (same logic as standard-rta.py)."
 )
 def rta_bronze():
-    raw_df = (spark.readStream.format("cloudFiles")
-                .option("cloudFiles.format", "csv")
+    raw_df = (spark.read.format("csv")
                 .option("header", "true")
                 .option("inferSchema", "false")
-                .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
-                .option("cloudFiles.schemaLocation", f"{source_path}/_checkpoints_v3")
                 .load(source_path))
 
     # Step 1: Group columns by target name and coalesce duplicates (fixes ambiguous reference errors)
