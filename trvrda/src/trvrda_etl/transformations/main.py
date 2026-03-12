@@ -318,10 +318,31 @@ def rta_silver():
     # 12. Ownership & Transport Type
     df = df \
         .withColumn("OWNERSHIP_TYPE", when(lower(trim(coalesce(col("secondVehicle"), lit("")))).isin("y", "yes", "1"), lit("PRE_OWNED")).otherwise(lit("NEW"))) \
-        .withColumn("TRANSPORT_TYPE", 
-            when(lower(trim(col("category"))).rlike("(?i)non.*transport"), lit("NON_TRANSPORT"))
-            .when(lower(trim(col("category"))).rlike("(?i)transport"), lit("TRANSPORT"))
-            .when(col("vehicleClass").rlike(r"(?i)CONTRACT|STAGE|GOODS|BUS|TAXI|AUTORICKSHAW|TRANSPORT"), lit("TRANSPORT"))
+        .withColumn("TRANSPORT_TYPE",
+            when(lower(trim(col("category"))).rlike(r"(?i)non.*transport"), lit("NON_TRANSPORT"))
+            .when(lower(trim(col("category"))).rlike(r"(?i)transport"), lit("TRANSPORT"))
+            .when(upper(trim(col("vehicleClass"))).rlike(
+                # Core commercial transport
+                r"CONTRACT|STAGE CARRIAGE|GOODS\s*CARRIAGE|GOODS\s*VEHICLE|TAXI|TRANSPORT|"
+                # Buses & minibuses
+                r"OMNI\s*BUS|OMINIBUS|OMNIBUS|MOTOR\s*BUS|SCHOOL\s*BUS|MAXI\s*CAB|"
+                r"EDUCATIONAL\s*INSTITUTION\s*BUS|STAFF\s*BUS|PRIVATE\s*SERVICE\s*VEHICLE|"
+                # Cabs & rickshaws
+                r"MOTOR\s*CAB|AUTO\s*RICKSHAW|AUTORICKSHAW|E\s*RICKSHAW|ERICKSHAW|"
+                r"E\s*CART|ECART|ELECTRIC\s*RICKSHAW|"
+                # Three/four wheeled goods
+                r"THREE\s*WHEELED\s*GOODS|3\s*WHEELED\s*GOODS|QUADRACYCLE\s*TRANSPORT|"
+                # Heavy goods / articulated
+                r"ARTICULATED|LOADER|TIPPER|TANKER|"
+                # Trailers & tractors for commercial use
+                r"TRAILER\s*FOR\s*COMMERCIAL|TRACTOR\s*FOR\s*COMMERCIAL|SEMI\s*TRAILER|"
+                # Construction & special equipment (commercial)
+                r"ROAD\s*ROLLER|MOTOR\s*GRADER|FORK\s*LIFT|FORKLIFT|CRANE|"
+                r"SELF\s*LOADING\s*CONCRETE\s*MIXER|CONCRETE\s*MIXER|"
+                r"VEHICLE\s*FITTED\s*WITH\s*CONSTRUCTION|"
+                # Chassis supplied for conversion
+                r"CHASSIS"
+            ), lit("TRANSPORT"))
             .otherwise(lit("NON_TRANSPORT")))
 
     # 13. RTA lookup and standardization
