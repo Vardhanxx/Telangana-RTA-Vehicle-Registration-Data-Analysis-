@@ -525,4 +525,4 @@ def fact_fuzzy_registrations():
         col("s.OfficeCd_STD").alias("RTA_OFFICE_CODE"),
         coalesce(col("rta.RTA_NAME"), lit(UNKNOWN_STR)).alias("RTA_NAME"),
         coalesce(col("r.MATCH_STATUS"), lit("UNMATCHED")).alias("MATCH_STATUS")
-    )
+    ).dropDuplicates(["TEMP_REGISTRATION_NUMBER"])
