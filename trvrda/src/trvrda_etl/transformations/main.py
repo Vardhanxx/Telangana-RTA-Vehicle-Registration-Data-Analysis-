@@ -276,10 +276,15 @@ def rta_silver():
     df = df.withColumn("todate_parsed", parse_to_date_expr("todate_preclean")) \
            .withColumn("todate_parsed", when(year(col("todate_parsed")) < 100, expr("add_months(todate_parsed, 2000 * 12)")).otherwise(col("todate_parsed")))
     
-    eff_date = coalesce(col("fromdate_parsed"), col("todate_parsed"), lit("1900-01-01"))
-    df = df.withColumn("REGISTRATION_YEAR", year(eff_date)) \
-           .withColumn("REGISTRATION_MONTH", month(eff_date)) \
-           .withColumn("REGISTRATION_DATE_ID", date_format(eff_date, "yyyyMMdd").cast(IntegerType()))
+    eff_date = coalesce(col("fromdate_parsed"), col("todate_parsed"))
+    # Null-out dates outside the valid 2019-2030 window so they don't corrupt the dashboard
+    eff_date_valid = when(
+        (eff_date.isNotNull()) & (year(eff_date) >= 2019) & (year(eff_date) <= 2030),
+        eff_date
+    ).otherwise(lit(None).cast("date"))
+    df = df.withColumn("REGISTRATION_YEAR", year(eff_date_valid)) \
+           .withColumn("REGISTRATION_MONTH", month(eff_date_valid)) \
+           .withColumn("REGISTRATION_DATE_ID", date_format(eff_date_valid, "yyyyMMdd").cast(IntegerType()))
 
     # 10. Fuel Normalization
     df = df.withColumn("fuel_clean", upper(
@@ -331,9 +336,9 @@ def rta_silver():
 # --- Gold Tables ---
 @dlt.table(name="dim_date_gold")
 def dim_date_gold():
-    return spark.sql("SELECT sequence(to_date('2000-01-01'), to_date('2030-12-31'), interval 1 day) as d") \
+    # Date range: 2019-01-01 to 2030-12-31 (matches Telangana RTA data window)
+    return spark.sql("SELECT sequence(to_date('2019-01-01'), to_date('2030-12-31'), interval 1 day) as d") \
                 .select(explode(col("d")).alias("full_date")) \
-                .unionByName(spark.createDataFrame([("1900-01-01",)], ["d"]).select(to_date(col("d")).alias("full_date"))) \
                 .withColumn("DATE_ID", date_format(col("full_date"), "yyyyMMdd").cast(IntegerType())) \
                 .withColumn("YEAR", year(col("full_date"))) \
                 .withColumn("MONTH", month(col("full_date"))) \
